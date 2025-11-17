@@ -1,0 +1,16 @@
+[
+ 
+      {
+        "clueName": "Гаряче",
+        "clueMovie": "./src/video/hot.mov"
+      },
+      {
+        "clueName": "самокат",
+        "clueMovie": "./src/video/samokat.mov"
+      },
+      {
+        "clueName": "велосипед",
+        "clueMovie": "./src/video/bikecyckle.mov"
+      }
+   
+]
