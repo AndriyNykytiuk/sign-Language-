@@ -1,10 +1,6 @@
 services:
   - type: web
     name: sign-language-app
-    env: node
-    rootDir: .
-    buildCommand: npm run render-build
-    startCommand: npm start
-    envVars:
-      - key: NODE_ENV
-        value: production
+    runtime: node
+    buildCommand: npm install && npm run build && node seed.js
+    startCommand: node server.js
