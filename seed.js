@@ -18,8 +18,8 @@ async function seed() {
 
 
     // Create Admin User
-    await db.addUser('admin', 'admin', 'admin');
-    console.log('Created admin user: admin/admin');
+    await db.addUser('admin', 'signLang', 'admin');
+    console.log('Created admin user: admin/signLang');
 
     console.log('Seeding complete!');
   } catch (err) {

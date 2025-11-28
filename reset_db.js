@@ -23,8 +23,8 @@ async function reset() {
         // bd.js will use the same DATABASE_URL from env
         await db.init();
 
-        console.log('👤 Creating default admin user (admin/admin)...');
-        await db.addUser('admin', 'admin', 'admin');
+        console.log('👤 Creating default admin user (admin/signLang)...');
+        await db.addUser('admin', 'signLang', 'admin');
 
         console.log('✨ Database reset successfully! You can now start from scratch.');
     } catch (err) {
