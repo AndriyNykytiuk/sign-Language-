@@ -68,7 +68,7 @@ async function addLessonObject(lessonId, wordName, videoLink, pictLink) {
 
 async function getAllLessonsWithObjects() {
   const sql = `
-    SELECT l.id as "lessonId", l.name, o.id as "objectId", o.wordName, o."videoLink", o."pictLink"
+    SELECT l.id as "lessonId", l.name, o.id as "objectId", o.wordName, o.videoLink, o.pictLink
     FROM lessons l
     LEFT JOIN lesson_objects o ON l.id = o.lesson_id
     ORDER BY l.id, o.id
@@ -89,7 +89,7 @@ async function getAllLessonsOnly() {
 
 async function getObjectsByLessonId(lessonId) {
   const sql = `
-    SELECT o.id as "objectId", o.wordName, o."videoLink", o."pictLink"
+    SELECT o.id as "objectId", o.wordName, o.videoLink, o.pictLink
     FROM lesson_objects o
     WHERE o.lesson_id = $1
     ORDER BY o.id
@@ -100,7 +100,7 @@ async function getObjectsByLessonId(lessonId) {
 
 async function searchObjects(queryStr) {
   const sql = `
-    SELECT o.id as "objectId", o.wordName, o."videoLink", o."pictLink"
+    SELECT o.id as "objectId", o.wordName, o.videoLink, o.pictLink
     FROM lesson_objects o
     WHERE o.wordName ILIKE $1
     ORDER BY o.wordName
