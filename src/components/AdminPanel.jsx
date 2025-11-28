@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_URL from '../config';
 
 const AdminPanel = () => {
     const [lessons, setLessons] = useState([]);
@@ -11,7 +12,7 @@ const AdminPanel = () => {
     const [newLessonName, setNewLessonName] = useState('');
 
     const fetchLessons = () => {
-        fetch('http://localhost:3000/lessons-list')
+        fetch(`${API_URL}/lessons-list`)
             .then(res => res.json())
             .then(data => setLessons(data))
             .catch(err => console.error(err));
@@ -32,7 +33,7 @@ const AdminPanel = () => {
         }
 
         try {
-            const res = await fetch(`http://localhost:3000/lessons/${selectedLesson}/objects`, {
+            const res = await fetch(`${API_URL}/lessons/${selectedLesson}/objects`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ wordName, videoLink, pictLink }),
@@ -63,7 +64,7 @@ const AdminPanel = () => {
         }
 
         try {
-            const res = await fetch('http://localhost:3000/lessons', {
+            const res = await fetch(`${API_URL}/lessons`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: newLessonName }),

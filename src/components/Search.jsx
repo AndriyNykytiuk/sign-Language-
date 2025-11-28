@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_URL from '../config';
 
 const Search = ({ onSearchResults }) => {
     const [query, setQuery] = useState('');
@@ -6,7 +7,7 @@ const Search = ({ onSearchResults }) => {
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
             if (query.trim()) {
-                fetch(`http://localhost:3000/search?q=${encodeURIComponent(query)}`)
+                fetch(`${API_URL}/search?q=${encodeURIComponent(query)}`)
                     .then(res => res.json())
                     .then(data => {
                         onSearchResults(data);

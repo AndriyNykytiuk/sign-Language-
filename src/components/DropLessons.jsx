@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import API_URL from '../config'
 
 const DropLessons = ({ onSelectLesson }) => {
   const [lesson, setLesson] = React.useState('')
@@ -10,7 +11,7 @@ const DropLessons = ({ onSelectLesson }) => {
     const ac = new AbortController()
     const fetchLessons = async () => {
       try {
-        const res = await fetch('http://localhost:3000/lessons-list', { signal: ac.signal })
+        const res = await fetch(`${API_URL}/lessons-list`, { signal: ac.signal })
         if (!res.ok) throw new Error(`HTTP ${res.status} `)
         const data = await res.json()
         setLessons(data)
@@ -51,7 +52,7 @@ const DropLessons = ({ onSelectLesson }) => {
 
   return (
     <div className="w-full" ref={dropdownRef}>
-   
+
       <div className="relative">
         {/* Dropdown Button */}
         <button

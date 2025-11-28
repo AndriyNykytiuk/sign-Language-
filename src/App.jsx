@@ -4,6 +4,7 @@ import DropLessons from './components/DropLessons'
 import Search from './components/Search'
 import Login from './components/Login'
 import AdminPanel from './components/AdminPanel'
+import API_URL from './config'
 
 function App() {
   const [cards, setCards] = useState([])
@@ -20,7 +21,7 @@ function App() {
     if (!selectedLessonId) return;
 
     setLoading(true);
-    fetch(`http://localhost:3000/lessons/${selectedLessonId}/objects`)
+    fetch(`${API_URL}/lessons/${selectedLessonId}/objects`)
       .then(res => res.json())
       .then(data => {
         setCards(data);
