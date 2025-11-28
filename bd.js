@@ -1,65 +1,41 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const DB_PATH = path.resolve(__dirname, 'data.db');
+const { Pool } = require('pg');
 
-let db = null;
+const isProduction = process.env.NODE_ENV === 'production';
 
-function open(dbFile = DB_PATH) {
-  return new Promise((resolve, reject) => {
-    if (db) return resolve(db);
-    db = new sqlite3.Database(
-      dbFile,
-      sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
-      (err) => {
-        if (err) return reject(err);
-        console.log('Connected to SQLite database.');
-        resolve(db);
-      }
-    );
-  });
-}
+// Use DATABASE_URL in production, or fallback to local config if needed
+// For local dev without a real PG DB, this might fail unless user provides a local string.
+// We will assume DATABASE_URL is provided or we default to a local postgres url.
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/signlng';
 
-function run(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    if (!db) return reject(new Error('Database not initialized'));
-    db.run(sql, params, function (err) {
-      if (err) return reject(err);
-      resolve(this);
-    });
-  });
-}
+const pool = new Pool({
+  connectionString,
+  ssl: isProduction ? { rejectUnauthorized: false } : false,
+});
 
-function all(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    if (!db) return reject(new Error('Database not initialized'));
-    db.all(sql, params, (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
+async function query(text, params) {
+  return pool.query(text, params);
 }
 
 const createLessonsSQL = `
   CREATE TABLE IF NOT EXISTS lessons (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     name TEXT NOT NULL
   );
 `;
 
 const createLessonObjectsSQL = `
   CREATE TABLE IF NOT EXISTS lesson_objects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    lesson_id INTEGER NOT NULL,
+    id SERIAL PRIMARY KEY,
+    lesson_id INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
     wordName TEXT NOT NULL,
     videoLink TEXT,
-    pictLink TEXT,
-    FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
+    pictLink TEXT
   );
 `;
 
 const createUsersSQL = `
   CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
     role TEXT NOT NULL
@@ -67,73 +43,92 @@ const createUsersSQL = `
 `;
 
 async function init() {
-  await open();
-  await run(createLessonsSQL);
-  await run(createLessonObjectsSQL);
-  await run(createUsersSQL);
+  try {
+    await query(createLessonsSQL);
+    await query(createLessonObjectsSQL);
+    await query(createUsersSQL);
+    console.log('PostgreSQL tables initialized.');
+  } catch (err) {
+    console.error('Error initializing database:', err);
+    throw err;
+  }
 }
 
 async function addLesson(name) {
-  const sql = `INSERT INTO lessons (name) VALUES (?)`;
-  const res = await run(sql, [name]);
-  return res.lastID;
+  const sql = `INSERT INTO lessons (name) VALUES ($1) RETURNING id`;
+  const res = await query(sql, [name]);
+  return res.rows[0].id;
 }
 
 async function addLessonObject(lessonId, wordName, videoLink, pictLink) {
-  const sql = `INSERT INTO lesson_objects (lesson_id, wordName, videoLink, pictLink) VALUES (?, ?, ?, ?)`;
-  const res = await run(sql, [lessonId, wordName, videoLink, pictLink]);
-  return res.lastID;
+  const sql = `INSERT INTO lesson_objects (lesson_id, wordName, videoLink, pictLink) VALUES ($1, $2, $3, $4) RETURNING id`;
+  const res = await query(sql, [lessonId, wordName, videoLink, pictLink]);
+  return res.rows[0].id;
 }
 
 async function getAllLessonsWithObjects() {
   const sql = `
-    SELECT l.id as lessonId, l.name, o.id as objectId, o.wordName, o.videoLink, o.pictLink
+    SELECT l.id as "lessonId", l.name, o.id as "objectId", o.wordName, o."videoLink", o."pictLink"
     FROM lessons l
     LEFT JOIN lesson_objects o ON l.id = o.lesson_id
     ORDER BY l.id, o.id
   `;
-  return all(sql);
+  const res = await query(sql);
+  // Map snake_case or whatever PG returns to camelCase if needed, 
+  // but here we aliased columns in SQL to match expected JS object structure roughly.
+  // PG returns lowercase column names usually unless quoted.
+  // We quoted aliases above to preserve camelCase.
+  return res.rows;
 }
 
 async function getAllLessonsOnly() {
   const sql = `SELECT id, name FROM lessons ORDER BY id`;
-  return all(sql);
+  const res = await query(sql);
+  return res.rows;
 }
 
 async function getObjectsByLessonId(lessonId) {
   const sql = `
-    SELECT o.id as objectId, o.wordName, o.videoLink, o.pictLink
+    SELECT o.id as "objectId", o.wordName, o."videoLink", o."pictLink"
     FROM lesson_objects o
-    WHERE o.lesson_id = ?
+    WHERE o.lesson_id = $1
     ORDER BY o.id
   `;
-  return all(sql, [lessonId]);
+  const res = await query(sql, [lessonId]);
+  return res.rows;
 }
 
-async function searchObjects(query) {
+async function searchObjects(queryStr) {
   const sql = `
-    SELECT o.id as objectId, o.wordName, o.videoLink, o.pictLink
+    SELECT o.id as "objectId", o.wordName, o."videoLink", o."pictLink"
     FROM lesson_objects o
-    WHERE o.wordName LIKE ?
+    WHERE o.wordName ILIKE $1
     ORDER BY o.wordName
   `;
-  return all(sql, [`%${query}%`]);
+  // ILIKE is case-insensitive in Postgres
+  const res = await query(sql, [`%${queryStr}%`]);
+  return res.rows;
 }
 
 async function addUser(username, password, role) {
-  const sql = `INSERT INTO users (username, password, role) VALUES (?, ?, ?)`;
-  const res = await run(sql, [username, password, role]);
-  return res.lastID;
+  const sql = `INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id`;
+  const res = await query(sql, [username, password, role]);
+  return res.rows[0].id;
 }
 
 async function getUserByUsername(username) {
-  const sql = `SELECT * FROM users WHERE username = ?`;
-  const rows = await all(sql, [username]);
-  return rows[0];
+  const sql = `SELECT * FROM users WHERE username = $1`;
+  const res = await query(sql, [username]);
+  return res.rows[0];
+}
+
+async function close() {
+  await pool.end();
 }
 
 module.exports = {
   init,
+  close,
   addLesson,
   addLessonObject,
   getAllLessonsWithObjects,

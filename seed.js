@@ -15,7 +15,7 @@ async function seed() {
     console.log('Seeding data...');
 
     // Create Lesson 1
- 
+
 
     // Create Admin User
     await db.addUser('admin', 'admin', 'admin');
@@ -24,6 +24,8 @@ async function seed() {
     console.log('Seeding complete!');
   } catch (err) {
     console.error('Seeding failed:', err);
+  } finally {
+    await db.close();
   }
 }
 
