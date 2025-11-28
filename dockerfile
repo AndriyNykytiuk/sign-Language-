@@ -1,17 +1,23 @@
-# Базовий образ
-FROM node:18
-
-# Робоча директорія
+# Stage 1: Build the React frontend
+FROM node:18-alpine AS builder
 WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-# Копіюємо файли
+# Stage 2: Setup the Node.js backend
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --production
 COPY . .
 
-# Встановлюємо залежності
-RUN npm install
+# Copy built frontend from builder stage
+COPY --from=builder /app/dist ./dist
 
-# Відкриваємо порт для API
-EXPOSE 3001
+# Expose port
+EXPOSE 3000
 
-# Запускаємо сервер
+# Start server
 CMD ["node", "server.js"]

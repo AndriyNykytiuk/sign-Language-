@@ -1,15 +1,18 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const DB_PATH = path.resolve(__dirname, 'data.db');
+
 let db = null;
 
 function open(dbFile = DB_PATH) {
   return new Promise((resolve, reject) => {
+    if (db) return resolve(db);
     db = new sqlite3.Database(
       dbFile,
       sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
       (err) => {
         if (err) return reject(err);
+        console.log('Connected to SQLite database.');
         resolve(db);
       }
     );
@@ -18,9 +21,20 @@ function open(dbFile = DB_PATH) {
 
 function run(sql, params = []) {
   return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error('Database not initialized'));
     db.run(sql, params, function (err) {
       if (err) return reject(err);
       resolve(this);
+    });
+  });
+}
+
+function all(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error('Database not initialized'));
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
     });
   });
 }
@@ -43,10 +57,20 @@ const createLessonObjectsSQL = `
   );
 `;
 
+const createUsersSQL = `
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL
+  );
+`;
+
 async function init() {
   await open();
   await run(createLessonsSQL);
   await run(createLessonObjectsSQL);
+  await run(createUsersSQL);
 }
 
 async function addLesson(name) {
@@ -62,43 +86,50 @@ async function addLessonObject(lessonId, wordName, videoLink, pictLink) {
 }
 
 async function getAllLessonsWithObjects() {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT l.id as lessonId, l.name, o.id as objectId, o.wordName, o.videoLink, o.pictLink
-      FROM lessons l
-      LEFT JOIN lesson_objects o ON l.id = o.lesson_id
-      ORDER BY l.id, o.id
-    `;
-    db.all(sql, [], (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
+  const sql = `
+    SELECT l.id as lessonId, l.name, o.id as objectId, o.wordName, o.videoLink, o.pictLink
+    FROM lessons l
+    LEFT JOIN lesson_objects o ON l.id = o.lesson_id
+    ORDER BY l.id, o.id
+  `;
+  return all(sql);
 }
 
 async function getAllLessonsOnly() {
-  return new Promise((resolve, reject) => {
-    const sql = `SELECT id, name FROM lessons ORDER BY id`;
-    db.all(sql, [], (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
+  const sql = `SELECT id, name FROM lessons ORDER BY id`;
+  return all(sql);
 }
 
 async function getObjectsByLessonId(lessonId) {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      SELECT o.id as objectId, o.wordName, o.videoLink, o.pictLink
-      FROM lesson_objects o
-      WHERE o.lesson_id = ?
-      ORDER BY o.id
-    `;
-    db.all(sql, [lessonId], (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
+  const sql = `
+    SELECT o.id as objectId, o.wordName, o.videoLink, o.pictLink
+    FROM lesson_objects o
+    WHERE o.lesson_id = ?
+    ORDER BY o.id
+  `;
+  return all(sql, [lessonId]);
+}
+
+async function searchObjects(query) {
+  const sql = `
+    SELECT o.id as objectId, o.wordName, o.videoLink, o.pictLink
+    FROM lesson_objects o
+    WHERE o.wordName LIKE ?
+    ORDER BY o.wordName
+  `;
+  return all(sql, [`%${query}%`]);
+}
+
+async function addUser(username, password, role) {
+  const sql = `INSERT INTO users (username, password, role) VALUES (?, ?, ?)`;
+  const res = await run(sql, [username, password, role]);
+  return res.lastID;
+}
+
+async function getUserByUsername(username) {
+  const sql = `SELECT * FROM users WHERE username = ?`;
+  const rows = await all(sql, [username]);
+  return rows[0];
 }
 
 module.exports = {
@@ -107,5 +138,8 @@ module.exports = {
   addLessonObject,
   getAllLessonsWithObjects,
   getAllLessonsOnly,
-  getObjectsByLessonId
+  getObjectsByLessonId,
+  searchObjects,
+  addUser,
+  getUserByUsername
 };

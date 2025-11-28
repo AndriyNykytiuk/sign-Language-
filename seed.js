@@ -1,28 +1,30 @@
-const db = require('./bd');
+const db = require('./bd.js');
 
 async function seed() {
-  await db.init();
+  try {
+    await db.init();
+    console.log('Database initialized for seeding.');
 
-  await db.addItem({
-    field1: 'Гаряче',
-    field2: '/video/hot.mov',
-    field3: 'абетка'
-  });
+    // Check if data exists
+    const lessons = await db.getAllLessonsOnly();
+    if (lessons.length > 0) {
+      console.log('Database already has data. Skipping seed.');
+      return;
+    }
 
-  await db.addItem({
-    field1: 'самокат',
-    field2: '/video/samokat.mov',
-    field3: 'абетка'
-  });
+    console.log('Seeding data...');
 
-  await db.addItem({
-    field1: 'велосипед',
-    field2: '/video/bikecyckle.mov',
-    field3: 'абетка'
-  });
+    // Create Lesson 1
+ 
 
-  console.log('✅ Дані успішно додано');
-  await db.close();
+    // Create Admin User
+    await db.addUser('admin', 'admin', 'admin');
+    console.log('Created admin user: admin/admin');
+
+    console.log('Seeding complete!');
+  } catch (err) {
+    console.error('Seeding failed:', err);
+  }
 }
 
 seed();
