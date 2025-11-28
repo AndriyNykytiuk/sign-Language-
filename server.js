@@ -120,6 +120,38 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// Endpoint to reset database (since Render free tier doesn't allow shell)
+app.get('/reset-db', async (req, res) => {
+  try {
+    // Import pg pool just for this operation or use db connection if possible
+    // Since bd.js doesn't expose raw query for dropping tables easily, we'll use a new pool connection here
+    // or we can add a reset function to bd.js.
+    // Let's use a new pool for simplicity as in reset_db.js
+    const { Pool } = require('pg');
+    const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/signlng';
+    const pool = new Pool({
+      connectionString,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    });
+
+    console.log('🗑️  Dropping all tables via endpoint...');
+    await pool.query('DROP TABLE IF EXISTS lesson_objects, lessons, users CASCADE');
+
+    console.log('🔄 Re-initializing database structure...');
+    await db.init();
+
+    console.log('👤 Creating default admin user (admin/signLang)...');
+    await db.addUser('admin', 'signLang', 'admin');
+
+    await pool.end();
+
+    res.send('Database reset successfully! Password is now: signLang');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Reset failed: ' + err.message);
+  }
+});
+
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
 app.get('*', (req, res) => {
