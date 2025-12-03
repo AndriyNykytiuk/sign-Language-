@@ -9,6 +9,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from public folder (for videos, images, etc.)
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'dist')));
 

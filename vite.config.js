@@ -5,12 +5,27 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(),
-      tailwindcss(),
+  tailwindcss(),
   ],
-   server: {
+  server: {
     proxy: {
       // всі запити на /lessons підуть на бекенд
       '/lessons': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/lessons-list': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/search': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/login': {
         target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false

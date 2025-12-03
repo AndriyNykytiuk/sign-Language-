@@ -14,8 +14,28 @@ async function seed() {
 
     console.log('Seeding data...');
 
-    // Create Lesson 1
+    // Create Dactyl Alphabet Lesson
+    const alphabetLessonId = await db.addLesson('Дактильна абетка');
+    console.log(`Created lesson "Дактильна абетка" with ID: ${alphabetLessonId}`);
 
+    // All Ukrainian alphabet letters
+    const alphabet = [
+      'А', 'Б', 'В', 'Г', 'Д', 'Е', 'Є', 'Ж', 'З', 'И', 'І', 'Й',
+      'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х',
+      'Ц', 'Ч', 'Ш', 'Щ', 'Ь', 'Ю', 'Я'
+    ];
+
+    // Add all alphabet letters with video links
+    for (const letter of alphabet) {
+      const videoLink = `/alphabet/${letter}.mp4`;
+      await db.addLessonObject(
+        alphabetLessonId,
+        letter,
+        videoLink,
+        null
+      );
+      console.log(`Added letter: ${letter}`);
+    }
 
     // Create Admin User
     await db.addUser('admin', 'signLang', 'admin');
