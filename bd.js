@@ -135,6 +135,17 @@ async function reset() {
   await init();
 }
 
+async function getAdminUser() {
+  const res = await query(`SELECT * FROM users WHERE role = 'admin' ORDER BY id LIMIT 1`);
+  return res.rows[0];
+}
+
+async function updateUserCredentials(id, username, password) {
+  const bcrypt = require('bcryptjs');
+  const hashedPassword = await bcrypt.hash(password, 10);
+  await query(`UPDATE users SET username = $1, password = $2 WHERE id = $3`, [username, hashedPassword, id]);
+}
+
 async function getUserByUsername(username) {
   const sql = `SELECT * FROM users WHERE username = $1`;
   const res = await query(sql, [username]);
@@ -157,5 +168,7 @@ module.exports = {
   searchObjects,
   addUser,
   getUserByUsername,
-  updateUserPassword
+  getAdminUser,
+  updateUserPassword,
+  updateUserCredentials
 };

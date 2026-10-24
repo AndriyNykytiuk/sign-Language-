@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "start": "node server.js",
     "render-build": "npm install --include=dev && npm run build && node seed.js",
-    "reset-db": "node reset_db.js"
+    "reset-db": "node reset_db.js",
+    "set-admin": "node set_admin.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.17",

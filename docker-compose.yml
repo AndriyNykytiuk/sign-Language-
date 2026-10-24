@@ -10,6 +10,7 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://signlng:${POSTGRES_PASSWORD}@db:5432/signlng
       DB_SSL: "false"
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       AUTH_SECRET: ${AUTH_SECRET}
     depends_on:

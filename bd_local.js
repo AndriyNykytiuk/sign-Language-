@@ -92,6 +92,10 @@ async function updateUserPassword(id, password) {
     if (user) user.password = await bcrypt.hash(password, 10);
 }
 
+async function getAdminUser() {
+    return users.find(u => u.role === 'admin');
+}
+
 async function getUserByUsername(username) {
     return users.find(u => u.username === username);
 }
@@ -112,5 +116,6 @@ module.exports = {
     searchObjects,
     addUser,
     getUserByUsername,
+    getAdminUser,
     updateUserPassword
 };

@@ -7,6 +7,10 @@ const ALPHABET = [
 
 const ALPHABET_LESSON_NAME = 'Дактильна абетка';
 
+function getAdminUsername() {
+  return process.env.ADMIN_USERNAME || 'admin';
+}
+
 function getAdminPassword() {
   if (!process.env.ADMIN_PASSWORD) {
     console.warn('⚠️  ADMIN_PASSWORD is not set, using the insecure default password');
@@ -25,10 +29,10 @@ async function seedDefaults(db) {
     console.log(`Created "${ALPHABET_LESSON_NAME}" lesson with ${ALPHABET.length} letters`);
   }
 
-  if (!(await db.getUserByUsername('admin'))) {
-    await db.addUser('admin', getAdminPassword(), 'admin');
+  if (!(await db.getAdminUser())) {
+    await db.addUser(getAdminUsername(), getAdminPassword(), 'admin');
     console.log('Created admin user');
   }
 }
 
-module.exports = { ALPHABET, ALPHABET_LESSON_NAME, getAdminPassword, seedDefaults };
+module.exports = { ALPHABET, ALPHABET_LESSON_NAME, getAdminUsername, getAdminPassword, seedDefaults };
