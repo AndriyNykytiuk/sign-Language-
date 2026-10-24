@@ -97,6 +97,51 @@ docker compose up -d --build                                    # Docker
 npm install --include=dev && npm run build && pm2 restart signlng   # Node.js
 ```
 
+## Резервні копії бази
+
+Усі уроки й картки зберігаються тільки в PostgreSQL, тож **без бекапів збій диска означає втрату всіх даних**.
+Для цього є скрипт `backup.sh`. Він зберігає копію бази в `backups/` і видаляє копії, старші за 14 днів.
+
+```bash
+./backup.sh                      # Docker Compose (за замовчуванням)
+BACKUP_MODE=node ./backup.sh     # Node.js + власний PostgreSQL (бере DATABASE_URL з .env, потрібен pg_dump)
+```
+
+Налаштування через змінні: `BACKUP_DIR` (папка, за замовчуванням `./backups`), `KEEP_DAYS` (скільки днів зберігати, за замовчуванням `14`).
+
+### Щоденний автоматичний бекап (cron)
+
+```bash
+crontab -e
+```
+
+Додайте рядок (шлях замініть на папку проекту). Бекап щодня о 03:00:
+
+```cron
+0 3 * * * /path/to/signlng/backup.sh >> /path/to/signlng/backups/backup.log 2>&1
+```
+
+Для варіанта без Docker: `0 3 * * * BACKUP_MODE=node /path/to/signlng/backup.sh >> ...`
+
+> Бекапи на тому ж диску не врятують, якщо зламається сам сервер.
+> Періодично копіюйте папку `backups/` в інше місце: інший сервер (`rsync`), хмару (`rclone`) тощо.
+
+### Відновлення з бекапу
+
+**Увага:** відновлення замінює всі поточні дані в базі даними з бекапу.
+
+```bash
+# Docker Compose
+docker compose exec -T db pg_restore -U signlng -d signlng --clean --if-exists < backups/signlng_2026-01-01_03-00.dump
+
+# Node.js + власний PostgreSQL
+pg_restore -d "$DATABASE_URL" --clean --if-exists backups/signlng_2026-01-01_03-00.dump
+```
+
+Після відновлення перезапустіть застосунок: `docker compose restart app` або `pm2 restart signlng`.
+
+> `docker compose down -v` (з прапорцем `-v`) **видаляє том з базою**. Звичайні `down` / `up` / `restart` дані не чіпають.
+
 ## Зміна логіна і пароля адміна
 
 Змінює логін і пароль наявного адміна або створює його, якщо адміна немає. Уроки й картки не змінюються.
