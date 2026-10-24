@@ -5,10 +5,16 @@ const { Pool } = require('pg');
 // We will assume DATABASE_URL is provided or we default to a local postgres url.
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/signlng';
 
+// DB_SSL=true/false forces SSL on/off; by default it's off only for a local PostgreSQL
+function useSsl() {
+  if (process.env.DB_SSL === 'true') return true;
+  if (process.env.DB_SSL === 'false') return false;
+  return !/localhost|127\.0\.0\.1/.test(connectionString);
+}
+
 const pool = new Pool({
   connectionString,
-  // Remote databases (e.g. Render) require SSL, a local PostgreSQL usually doesn't
-  ssl: /localhost|127\.0\.0\.1/.test(connectionString) ? false : { rejectUnauthorized: false },
+  ssl: useSsl() ? { rejectUnauthorized: false } : false,
 });
 
 async function query(text, params) {
