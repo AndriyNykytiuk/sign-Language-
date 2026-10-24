@@ -25,11 +25,19 @@ const saveAuth = (auth) => {
   }
 }
 
+// How many other cards are shown before an answered card comes back
+const REPEAT_AFTER = {
+  'не знаю': 1,
+  'плутаюсь': 4,
+}
+
 function App() {
-  const [cards, setCards] = useState([])
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [repeatQueue, setRepeatQueue] = useState([])
-  const [stepsSinceLastRepeat, setStepsSinceLastRepeat] = useState(0)
+  // Study queue: the current card is always deck[0]
+  const [deck, setDeck] = useState([])
+  // Ids of cards whose latest answer was "знаю"
+  const [knownIds, setKnownIds] = useState(() => new Set())
+  // Increments on every answer so the card remounts even when the same card comes again
+  const [step, setStep] = useState(0)
   const [selectedLessonId, setSelectedLessonId] = useState(null)
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState(loadAuth)
@@ -37,6 +45,12 @@ function App() {
   // Bumped after admin changes so the header lesson list reloads
   const [lessonsVersion, setLessonsVersion] = useState(0)
   const handleLessonsChanged = useCallback(() => setLessonsVersion(v => v + 1), [])
+
+  const startDeck = (newCards) => {
+    setDeck(newCards);
+    setKnownIds(new Set());
+    setStep(prev => prev + 1);
+  };
 
   // Fetch objects when a lesson is selected
   useEffect(() => {
@@ -48,22 +62,14 @@ function App() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then(data => {
-        setCards(data);
-        setCurrentIndex(0);
-        setRepeatQueue([]);
-        setStepsSinceLastRepeat(0);
-      })
+      .then(startDeck)
       .catch(err => console.error('Failed to fetch lesson objects:', err))
       .finally(() => setLoading(false));
   }, [selectedLessonId]);
 
   const handleSearchResults = useCallback((results) => {
     if (results) {
-      setCards(results);
-      setCurrentIndex(0);
-      setRepeatQueue([]);
-      setStepsSinceLastRepeat(0);
+      startDeck(results);
       // Reset so that re-selecting the same lesson triggers a reload
       setSelectedLessonId(null);
     } else {
@@ -89,26 +95,23 @@ function App() {
     setView('main');
   }, []);
 
+  // "не знаю" — back right after the next card, "плутаюсь" — after 4 cards, "знаю" — to the end
   const handleNext = (level) => {
-    if (cards.length === 0) return;
+    if (deck.length === 0) return;
 
-    const currentItem = cards[currentIndex]
-    const unknown = level === 'не знаю' ? [currentItem] : []
-    let newCards = cards
-    if (repeatQueue.length > 0 && stepsSinceLastRepeat >= 2) {
-      const [nextRepeat, ...rest] = repeatQueue
-      newCards = [...cards]
-      newCards.splice(currentIndex + 1, 0, nextRepeat)
-      setCards(newCards)
-      setRepeatQueue([...rest, ...unknown])
-      setStepsSinceLastRepeat(0)
-    } else {
-      setRepeatQueue([...repeatQueue, ...unknown])
-      setStepsSinceLastRepeat(prev => prev + 1)
-    }
-    // Use the updated length so a repeat inserted after the last card isn't skipped
-    setCurrentIndex(currentIndex + 1 < newCards.length ? currentIndex + 1 : 0)
+    const [current, ...rest] = deck
+    const position = level in REPEAT_AFTER ? Math.min(REPEAT_AFTER[level], rest.length) : rest.length
+    setDeck([...rest.slice(0, position), current, ...rest.slice(position)])
+
+    setKnownIds(prev => {
+      const next = new Set(prev)
+      if (level === 'знаю') next.add(current.objectId)
+      else next.delete(current.objectId)
+      return next
+    })
+    setStep(prev => prev + 1)
   }
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
@@ -170,14 +173,15 @@ function App() {
             <>
               {loading ? (
                 <div className="text-center text-gray-500 mt-10">Завантаження...</div>
-              ) : cards.length > 0 ? (
+              ) : deck.length > 0 ? (
                 <div className="w-full max-w-4xl">
                   <Card
-                    info={cards[currentIndex]}
+                    key={step}
+                    info={deck[0]}
                     onNext={handleNext}
                   />
                   <div className="text-center mt-6 text-sm text-gray-400">
-                    Картка {currentIndex + 1} з {cards.length}
+                    Знаю {knownIds.size} з {deck.length}
                   </div>
                 </div>
               ) : (
