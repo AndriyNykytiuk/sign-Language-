@@ -13,16 +13,6 @@ async function init() {
     await seedDefaults(module.exports);
 }
 
-async function reset() {
-    lessons = [];
-    lessonObjects = [];
-    users = [];
-    lessonIdCounter = 1;
-    objectIdCounter = 1;
-    userIdCounter = 1;
-    await init();
-}
-
 async function addLesson(name) {
     const id = lessonIdCounter++;
     lessons.push({ id, name });
@@ -106,7 +96,6 @@ async function close() {
 
 module.exports = {
     init,
-    reset,
     close,
     addLesson,
     addLessonObject,

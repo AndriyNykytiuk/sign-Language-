@@ -62,12 +62,12 @@ const DropLessons = ({ onSelectLesson, version }) => {
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="block w-full pl-5 pr-10 py-4 text-left text-base text-gray-700 bg-white border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-2xl shadow-sm transition-all duration-200 hover:border-blue-300 cursor-pointer"
+          className="block w-full pl-4 pr-10 py-2 text-left text-base text-gray-700 bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-colors duration-200 hover:border-blue-300 cursor-pointer"
         >
           <span className={selectedLesson ? 'text-gray-700' : 'text-gray-400'}>
             {selectedLesson ? selectedLesson.name : '-- Оберіть урок зі списку --'}
           </span>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
             <svg
               className={`h-5 w-5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
               fill="none"
@@ -81,12 +81,12 @@ const DropLessons = ({ onSelectLesson, version }) => {
 
         {/* Dropdown List */}
         {isOpen && (
-          <ul className="absolute z-[100] w-full p-3 mt-2 bg-white border-2 border-gray-200 rounded-2xl shadow-lg max-h-60 overflow-auto">
+          <ul className="absolute z-[100] w-full p-1 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
             {lessons.map((l) => (
               <li
                 key={l.id}
                 onClick={() => handleSelect(l.id)}
-                className={`px-5 mb-3 py-3 cursor-pointer transition-colors duration-150 first:rounded-t-2xl last:rounded-b-2xl ${lesson === String(l.id)
+                className={`px-3 py-2 rounded-md cursor-pointer transition-colors duration-150 ${lesson === String(l.id)
                   ? 'bg-blue-50 text-blue-600 font-semibold'
                   : 'text-gray-700 hover:bg-gray-50'
                   }`}

@@ -5,7 +5,6 @@ const cors = require('cors');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const { createToken, requireAdmin } = require('./auth');
-const { seedDefaults } = require('./defaults');
 
 // Use in-memory database for local development, PostgreSQL for production
 const isProduction = process.env.NODE_ENV === 'production';
@@ -139,19 +138,6 @@ app.post('/login', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Помилка сервера' });
-  }
-});
-
-// Скидання БД (Render free tier не дає shell) — тільки для адміна
-app.post('/reset-db', requireAdmin, async (req, res) => {
-  try {
-    console.log('🗑️  Resetting database via endpoint...');
-    await db.reset();
-    await seedDefaults(db);
-    res.json({ message: 'Базу даних скинуто' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Помилка при скиданні бази' });
   }
 });
 

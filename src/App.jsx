@@ -137,14 +137,14 @@ function App() {
                 {user.role === 'admin' && (
                   <button
                     onClick={() => setView(view === 'admin' ? 'main' : 'admin')}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                    className="px-4 py-2 rounded-lg font-medium border border-transparent bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
                   >
                     {view === 'admin' ? 'Головна' : 'Адмін'}
                   </button>
                 )}
                 <button
                   onClick={handleLogout}
-                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+                  className="px-4 py-2 rounded-lg font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                 >
                   Вийти
                 </button>
@@ -152,7 +152,7 @@ function App() {
             ) : (
               <button
                 onClick={() => setView('login')}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                className="px-4 py-2 rounded-lg font-medium border border-transparent bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
                 Вхід
               </button>

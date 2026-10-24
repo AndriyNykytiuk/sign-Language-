@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react'
-import '../css/button.css'
 import { getYouTubeId, getYouTubeEmbedUrl, isYouTubeShort } from '../utils/youtube'
 
 const Card = ({ info, onNext }) => {
@@ -147,9 +146,9 @@ const Card = ({ info, onNext }) => {
 
       {isRevealed && (
         <div className="mt-8 flex gap-4 justify-center">
-          <button onClick={() => handleLevelClick('знаю')} className="px-6 py-3 rounded-full font-semibold text-white bg-green-500 hover:bg-green-600 shadow-md transform hover:scale-105 transition-all">Знаю</button>
-          <button onClick={() => handleLevelClick('плутаюсь')} className="px-6 py-3 rounded-full font-semibold text-white bg-yellow-500 hover:bg-yellow-600 shadow-md transform hover:scale-105 transition-all">Плутаюсь</button>
-          <button onClick={() => handleLevelClick('не знаю')} className="px-6 py-3 rounded-full font-semibold text-white bg-red-500 hover:bg-red-600 shadow-md transform hover:scale-105 transition-all">Не знаю</button>
+          <button onClick={() => handleLevelClick('знаю')} className="px-6 py-3 rounded-full font-semibold text-white bg-emerald-500 hover:bg-emerald-600 shadow-md transform hover:scale-105 transition-all">Знаю</button>
+          <button onClick={() => handleLevelClick('плутаюсь')} className="px-6 py-3 rounded-full font-semibold text-amber-950 bg-amber-400 hover:bg-amber-500 shadow-md transform hover:scale-105 transition-all">Плутаюсь</button>
+          <button onClick={() => handleLevelClick('не знаю')} className="px-6 py-3 rounded-full font-semibold text-white bg-rose-500 hover:bg-rose-600 shadow-md transform hover:scale-105 transition-all">Не знаю</button>
         </div>
       )}
     </div>

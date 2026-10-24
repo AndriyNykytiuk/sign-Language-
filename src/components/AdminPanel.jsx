@@ -17,7 +17,6 @@ const AdminPanel = ({ token, onUnauthorized, onLessonsChanged }) => {
     const [newLessonName, setNewLessonName] = useState('');
     const [lessonStatus, setLessonStatus] = useState(null);
     const [cardStatus, setCardStatus] = useState(null);
-    const [resetStatus, setResetStatus] = useState(null);
 
     // POST with the admin token; logs out if the token is missing or expired
     const adminPost = async (url, body) => {
@@ -100,27 +99,6 @@ const AdminPanel = ({ token, onUnauthorized, onLessonsChanged }) => {
             if (err.message === 'unauthorized') return;
             console.error(err);
             setLessonStatus({ type: 'error', text: 'Помилка сервера' });
-        }
-    };
-
-    const handleResetDb = async () => {
-        if (!window.confirm('Видалити ВСІ уроки та картки і відновити початкові дані? Цю дію не можна скасувати.')) return;
-        setResetStatus(null);
-
-        try {
-            const { res, data } = await adminPost(`${API_URL}/reset-db`, {});
-            if (res.ok) {
-                setResetStatus({ type: 'success', text: data.message || 'Базу даних скинуто' });
-                setSelectedLesson('');
-                fetchLessons();
-                onLessonsChanged();
-            } else {
-                setResetStatus({ type: 'error', text: data.error || 'Помилка при скиданні бази' });
-            }
-        } catch (err) {
-            if (err.message === 'unauthorized') return;
-            console.error(err);
-            setResetStatus({ type: 'error', text: 'Помилка сервера' });
         }
     };
 
@@ -214,22 +192,6 @@ const AdminPanel = ({ token, onUnauthorized, onLessonsChanged }) => {
                         Додати картку
                     </button>
                 </form>
-            </div>
-
-            {/* Reset DB Section */}
-            <div className="bg-white p-8 rounded-lg shadow-md border border-red-200">
-                <h2 className="text-2xl font-bold mb-2 text-gray-800">Скинути базу даних</h2>
-                <p className="text-sm text-gray-500 mb-6">Видаляє всі уроки й картки та відновлює дактильну абетку і адміна.</p>
-
-                <Status status={resetStatus} />
-
-                <button
-                    type="button"
-                    onClick={handleResetDb}
-                    className="w-full bg-red-600 text-white font-bold py-2 px-4 rounded hover:bg-red-700 transition duration-200"
-                >
-                    Скинути базу
-                </button>
             </div>
         </div>
     );
