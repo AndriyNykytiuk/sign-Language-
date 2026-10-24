@@ -2,5 +2,18 @@ services:
   - type: web
     name: sign-language-app
     runtime: node
-    buildCommand: npm install && npm run build && node seed.js
+    # --include=dev: with NODE_ENV=production npm would skip vite (a devDependency)
+    buildCommand: npm install --include=dev && npm run build && node seed.js
     startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: AUTH_SECRET
+        generateValue: true
+      # Set these in the Render dashboard
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

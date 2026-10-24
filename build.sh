@@ -10,7 +10,7 @@ ls -la
 
 echo ""
 echo "Installing dependencies..."
-npm install
+npm install --include=dev
 
 echo ""
 echo "Building frontend with Vite..."

@@ -6,6 +6,25 @@ import Login from './components/Login'
 import AdminPanel from './components/AdminPanel'
 import API_URL from './config'
 
+const AUTH_STORAGE_KEY = 'auth'
+
+const loadAuth = () => {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY))
+  } catch {
+    return null
+  }
+}
+
+const saveAuth = (auth) => {
+  try {
+    if (auth) localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth))
+    else localStorage.removeItem(AUTH_STORAGE_KEY)
+  } catch {
+    // storage unavailable (private mode etc.) — session just won't persist
+  }
+}
+
 function App() {
   const [cards, setCards] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -13,8 +32,11 @@ function App() {
   const [stepsSinceLastRepeat, setStepsSinceLastRepeat] = useState(0)
   const [selectedLessonId, setSelectedLessonId] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(loadAuth)
   const [view, setView] = useState('main') // 'main', 'login', 'admin'
+  // Bumped after admin changes so the header lesson list reloads
+  const [lessonsVersion, setLessonsVersion] = useState(0)
+  const handleLessonsChanged = useCallback(() => setLessonsVersion(v => v + 1), [])
 
   // Fetch objects when a lesson is selected
   useEffect(() => {
@@ -22,7 +44,10 @@ function App() {
 
     setLoading(true);
     fetch(`${API_URL}/lessons/${selectedLessonId}/objects`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         setCards(data);
         setCurrentIndex(0);
@@ -30,8 +55,6 @@ function App() {
         setStepsSinceLastRepeat(0);
       })
       .catch(err => console.error('Failed to fetch lesson objects:', err))
-
-
       .finally(() => setLoading(false));
   }, [selectedLessonId]);
 
@@ -41,17 +64,18 @@ function App() {
       setCurrentIndex(0);
       setRepeatQueue([]);
       setStepsSinceLastRepeat(0);
-      // Optionally clear selected lesson so that if we select it again, it reloads?
-      // Or just leave it. If we leave it, selecting the same lesson again won't trigger useEffect.
-      // So maybe we should set it to null?
-      // But if we set to null, the DropLessons might not reflect that.
-      // Let's just setCards for now.
+      // Reset so that re-selecting the same lesson triggers a reload
       setSelectedLessonId(null);
+    } else {
+      // Search cleared — return to the previously selected lesson
+      const savedId = sessionStorage.getItem('selectedLessonId');
+      if (savedId) setSelectedLessonId(savedId);
     }
   }, []);
 
   const handleLogin = (userData) => {
     setUser(userData);
+    saveAuth(userData);
     if (userData.role === 'admin') {
       setView('admin');
     } else {
@@ -59,29 +83,31 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setUser(null);
+    saveAuth(null);
     setView('main');
-  };
+  }, []);
 
   const handleNext = (level) => {
     if (cards.length === 0) return;
 
     const currentItem = cards[currentIndex]
-    if (level === 'не знаю') {
-      setRepeatQueue(prev => [...prev, currentItem])
-    }
+    const unknown = level === 'не знаю' ? [currentItem] : []
+    let newCards = cards
     if (repeatQueue.length > 0 && stepsSinceLastRepeat >= 2) {
       const [nextRepeat, ...rest] = repeatQueue
-      const newCards = [...cards]
+      newCards = [...cards]
       newCards.splice(currentIndex + 1, 0, nextRepeat)
       setCards(newCards)
-      setRepeatQueue(rest)
+      setRepeatQueue([...rest, ...unknown])
       setStepsSinceLastRepeat(0)
     } else {
+      setRepeatQueue([...repeatQueue, ...unknown])
       setStepsSinceLastRepeat(prev => prev + 1)
     }
-    setCurrentIndex(prev => (prev + 1 < cards.length ? prev + 1 : 0))
+    // Use the updated length so a repeat inserted after the last card isn't skipped
+    setCurrentIndex(currentIndex + 1 < newCards.length ? currentIndex + 1 : 0)
   }
 
   return (
@@ -98,11 +124,11 @@ function App() {
           <div className="flex flex-col md:flex-row gap-4 w-full max-w-2xl items-center">
             <Search onSearchResults={handleSearchResults} />
             <div className="w-full max-w-md">
-              <DropLessons onSelectLesson={setSelectedLessonId} />
+              <DropLessons onSelectLesson={setSelectedLessonId} version={lessonsVersion} />
             </div>
           </div>
           {/* Auth Buttons */}
-          <div className="hidden md:flex gap-2">
+          <div className="flex gap-2">
             {user ? (
               <>
                 {user.role === 'admin' && (
@@ -139,7 +165,7 @@ function App() {
           {view === 'login' ? (
             <Login onLogin={handleLogin} onClose={() => setView('main')} />
           ) : view === 'admin' ? (
-            <AdminPanel />
+            <AdminPanel token={user?.token} onUnauthorized={handleLogout} onLessonsChanged={handleLessonsChanged} />
           ) : (
             <>
               {loading ? (

@@ -1,7 +1,5 @@
 const { Pool } = require('pg');
 
-const isProduction = process.env.NODE_ENV === 'production';
-
 // Use DATABASE_URL in production, or fallback to local config if needed
 // For local dev without a real PG DB, this might fail unless user provides a local string.
 // We will assume DATABASE_URL is provided or we default to a local postgres url.
@@ -9,7 +7,8 @@ const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:post
 
 const pool = new Pool({
   connectionString,
-  ssl: isProduction ? { rejectUnauthorized: false } : false,
+  // Remote databases (e.g. Render) require SSL, a local PostgreSQL usually doesn't
+  ssl: /localhost|127\.0\.0\.1/.test(connectionString) ? false : { rejectUnauthorized: false },
 });
 
 async function query(text, params) {
@@ -111,9 +110,23 @@ async function searchObjects(queryStr) {
 }
 
 async function addUser(username, password, role) {
+  const bcrypt = require('bcryptjs');
+  const hashedPassword = await bcrypt.hash(password, 10);
   const sql = `INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id`;
-  const res = await query(sql, [username, password, role]);
+  const res = await query(sql, [username, hashedPassword, role]);
   return res.rows[0].id;
+}
+
+
+async function updateUserPassword(id, password) {
+  const bcrypt = require('bcryptjs');
+  const hashedPassword = await bcrypt.hash(password, 10);
+  await query(`UPDATE users SET password = $1 WHERE id = $2`, [hashedPassword, id]);
+}
+
+async function reset() {
+  await query('DROP TABLE IF EXISTS lesson_objects, lessons, users CASCADE');
+  await init();
 }
 
 async function getUserByUsername(username) {
@@ -128,6 +141,7 @@ async function close() {
 
 module.exports = {
   init,
+  reset,
   close,
   addLesson,
   addLessonObject,
@@ -136,5 +150,6 @@ module.exports = {
   getObjectsByLessonId,
   searchObjects,
   addUser,
-  getUserByUsername
+  getUserByUsername,
+  updateUserPassword
 };

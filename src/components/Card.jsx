@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react'
 import '../css/button.css'
+import { getYouTubeId, getYouTubeEmbedUrl, isYouTubeShort } from '../utils/youtube'
 
 const Card = ({ info, onNext }) => {
   const [isRevealed, setRevealed] = useState(false)
+  const videoRef = useRef(null);
 
   // Reset revealed state when info changes
   useEffect(() => {
     setRevealed(false);
   }, [info]);
-
-  if (!info) return <div className="text-center">Немає даних</div>;
 
   const handleLevelClick = (level) => {
     onNext(level)
@@ -18,6 +18,12 @@ const Card = ({ info, onNext }) => {
   // Хелпер для обробки посилань
   const getVideoConfig = (url) => {
     if (!url) return null;
+
+    // YouTube - вбудований плеєр; Shorts показуємо вертикально
+    const youTubeId = getYouTubeId(url);
+    if (youTubeId) {
+      return { type: 'iframe', src: getYouTubeEmbedUrl(youTubeId), vertical: isYouTubeShort(url) };
+    }
 
     // Google Drive - використовуємо iframe
     if (url.includes('drive.google.com')) {
@@ -44,9 +50,7 @@ const Card = ({ info, onNext }) => {
     return { type: 'video', src: url };
   }
 
-  const videoConfig = getVideoConfig(info.videoLink)
-
-  const videoRef = useRef(null);
+  const videoConfig = getVideoConfig(info?.videoLink)
 
   // Reload video when source changes
   useEffect(() => {
@@ -54,6 +58,9 @@ const Card = ({ info, onNext }) => {
       videoRef.current.load();
     }
   }, [videoConfig?.src]);
+
+  // All hooks must run before this early return
+  if (!info) return <div className="text-center">Немає даних</div>;
 
   const handleReveal = () => {
     // 1. Try to play FIRST (while we have the user click token)
@@ -112,11 +119,12 @@ const Card = ({ info, onNext }) => {
           {videoConfig ? (
             videoConfig.type === 'iframe' ? (
               isRevealed && (
-                <div className="w-full aspect-video">
+                <div className={videoConfig.vertical ? 'h-[70vh] max-w-full aspect-[9/16]' : 'w-full aspect-video'}>
                   <iframe
                     src={videoConfig.src}
                     className="w-full h-full"
-                    allow="autoplay; encrypted-media"
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen
                     title="Video player"
                   />

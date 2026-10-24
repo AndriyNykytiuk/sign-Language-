@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import API_URL from '../config'
 
-const DropLessons = ({ onSelectLesson }) => {
+const DropLessons = ({ onSelectLesson, version }) => {
   const [lesson, setLesson] = React.useState('')
   const [lessons, setLessons] = React.useState([])
   const [isOpen, setIsOpen] = React.useState(false)
@@ -12,14 +12,18 @@ const DropLessons = ({ onSelectLesson }) => {
     const fetchLessons = async () => {
       try {
         const res = await fetch(`${API_URL}/lessons-list`, { signal: ac.signal })
-        if (!res.ok) throw new Error(`HTTP ${res.status} `)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         setLessons(data)
 
         const savedId = sessionStorage.getItem('selectedLessonId')
-        if (savedId) {
+        // Drop a saved lesson that no longer exists (e.g. after a DB reset)
+        if (savedId && data.some(l => String(l.id) === savedId)) {
           setLesson(savedId)
           onSelectLesson(savedId)
+        } else if (savedId) {
+          sessionStorage.removeItem('selectedLessonId')
+          setLesson('')
         }
       } catch (err) {
         if (err.name === 'AbortError') return
@@ -28,7 +32,7 @@ const DropLessons = ({ onSelectLesson }) => {
     }
     fetchLessons()
     return () => ac.abort()
-  }, [onSelectLesson])
+  }, [onSelectLesson, version])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -41,14 +45,14 @@ const DropLessons = ({ onSelectLesson }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleSelect = (selectedId, selectedName) => {
-    setLesson(selectedId)
+  const handleSelect = (selectedId) => {
+    setLesson(String(selectedId))
     sessionStorage.setItem('selectedLessonId', selectedId)
     onSelectLesson(selectedId)
     setIsOpen(false)
   }
 
-  const selectedLesson = lessons.find(l => l.id === parseInt(lesson))
+  const selectedLesson = lessons.find(l => String(l.id) === lesson)
 
   return (
     <div className="w-full" ref={dropdownRef}>
@@ -65,7 +69,7 @@ const DropLessons = ({ onSelectLesson }) => {
           </span>
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
             <svg
-              className={`h - 5 w - 5 transition - transform duration - 200 ${isOpen ? 'rotate-180' : ''} `}
+              className={`h-5 w-5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -77,15 +81,15 @@ const DropLessons = ({ onSelectLesson }) => {
 
         {/* Dropdown List */}
         {isOpen && (
-          <ul className="absolute z-100 w-full p-3 mt-2 bg-white border-2 border-gray-200 rounded-2xl shadow-lg max-h-60 overflow-auto">
+          <ul className="absolute z-[100] w-full p-3 mt-2 bg-white border-2 border-gray-200 rounded-2xl shadow-lg max-h-60 overflow-auto">
             {lessons.map((l) => (
               <li
                 key={l.id}
-                onClick={() => handleSelect(l.id, l.name)}
-                className={`px - 5 mb-3 py - 3 cursor - pointer transition - colors duration - 150 first: rounded - t - 2xl last: rounded - b - 2xl ${lesson === l.id.toString()
+                onClick={() => handleSelect(l.id)}
+                className={`px-5 mb-3 py-3 cursor-pointer transition-colors duration-150 first:rounded-t-2xl last:rounded-b-2xl ${lesson === String(l.id)
                   ? 'bg-blue-50 text-blue-600 font-semibold'
                   : 'text-gray-700 hover:bg-gray-50'
-                  } `}
+                  }`}
               >
                 {l.name}
               </li>

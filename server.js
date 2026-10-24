@@ -1,7 +1,15 @@
+require('dotenv').config();
 const express = require('express');
+
 const cors = require('cors');
 const path = require('path');
-const db = require('./bd.js');
+const bcrypt = require('bcryptjs');
+const { createToken, requireAdmin } = require('./auth');
+const { seedDefaults } = require('./defaults');
+
+// Use in-memory database for local development, PostgreSQL for production
+const isProduction = process.env.NODE_ENV === 'production';
+const db = isProduction ? require('./bd.js') : require('./bd_local.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,7 +39,7 @@ app.use(express.static(path.join(__dirname, 'dist')));
 })();
 
 // додати урок
-app.post('/lessons', async (req, res) => {
+app.post('/lessons', requireAdmin, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Назва уроку обов’язкова' });
@@ -44,7 +52,7 @@ app.post('/lessons', async (req, res) => {
 });
 
 // додати об’єкт до уроку
-app.post('/lessons/:id/objects', async (req, res) => {
+app.post('/lessons/:id/objects', requireAdmin, async (req, res) => {
   try {
     const { wordName, videoLink, pictLink } = req.body;
     const lessonId = req.params.id;
@@ -104,6 +112,16 @@ app.get('/search', async (req, res) => {
   }
 });
 
+// Supports legacy plaintext passwords and upgrades them to bcrypt on successful login
+async function checkPassword(user, password) {
+  if (user.password.startsWith('$2')) {
+    return bcrypt.compare(password, user.password);
+  }
+  if (user.password !== password) return false;
+  await db.updateUserPassword(user.id, password);
+  return true;
+}
+
 // логін
 app.post('/login', async (req, res) => {
   try {
@@ -112,46 +130,28 @@ app.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Введіть логін і пароль' });
     }
     const user = await db.getUserByUsername(username);
-    if (!user || user.password !== password) {
+    if (!user || !(await checkPassword(user, password))) {
       return res.status(401).json({ error: 'Невірний логін або пароль' });
     }
-    // Return user info (excluding password)
-    res.json({ id: user.id, username: user.username, role: user.role });
+
+    // Return user info (excluding password) and an auth token
+    res.json({ id: user.id, username: user.username, role: user.role, token: createToken(user) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Помилка сервера' });
   }
 });
 
-// Endpoint to reset database (since Render free tier doesn't allow shell)
-app.get('/reset-db', async (req, res) => {
+// Скидання БД (Render free tier не дає shell) — тільки для адміна
+app.post('/reset-db', requireAdmin, async (req, res) => {
   try {
-    // Import pg pool just for this operation or use db connection if possible
-    // Since bd.js doesn't expose raw query for dropping tables easily, we'll use a new pool connection here
-    // or we can add a reset function to bd.js.
-    // Let's use a new pool for simplicity as in reset_db.js
-    const { Pool } = require('pg');
-    const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/signlng';
-    const pool = new Pool({
-      connectionString,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    });
-
-    console.log('🗑️  Dropping all tables via endpoint...');
-    await pool.query('DROP TABLE IF EXISTS lesson_objects, lessons, users CASCADE');
-
-    console.log('🔄 Re-initializing database structure...');
-    await db.init();
-
-    console.log('👤 Creating default admin user (admin/signLang)...');
-    await db.addUser('admin', 'signLang', 'admin');
-
-    await pool.end();
-
-    res.send('Database reset successfully! Password is now: signLang');
+    console.log('🗑️  Resetting database via endpoint...');
+    await db.reset();
+    await seedDefaults(db);
+    res.json({ message: 'Базу даних скинуто' });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Reset failed: ' + err.message);
+    res.status(500).json({ error: 'Помилка при скиданні бази' });
   }
 });
 

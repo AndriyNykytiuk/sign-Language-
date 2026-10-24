@@ -1,20 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import API_URL from '../config';
+import { getYouTubeId, isYouTubeUrl } from '../utils/youtube';
 
-const AdminPanel = () => {
+const Status = ({ status }) => {
+    if (!status) return null;
+    const style = status.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+    return <div className={`${style} p-3 rounded mb-4`}>{status.text}</div>;
+};
+
+const AdminPanel = ({ token, onUnauthorized, onLessonsChanged }) => {
     const [lessons, setLessons] = useState([]);
     const [selectedLesson, setSelectedLesson] = useState('');
     const [wordName, setWordName] = useState('');
     const [videoLink, setVideoLink] = useState('');
     const [pictLink, setPictLink] = useState('');
-    const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
     const [newLessonName, setNewLessonName] = useState('');
+    const [lessonStatus, setLessonStatus] = useState(null);
+    const [cardStatus, setCardStatus] = useState(null);
+    const [resetStatus, setResetStatus] = useState(null);
+
+    // POST with the admin token; logs out if the token is missing or expired
+    const adminPost = async (url, body) => {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(body),
+        });
+        if (res.status === 401) {
+            onUnauthorized();
+            throw new Error('unauthorized');
+        }
+        const data = await res.json();
+        return { res, data };
+    };
 
     const fetchLessons = () => {
         fetch(`${API_URL}/lessons-list`)
             .then(res => res.json())
-            .then(data => setLessons(data))
+            .then(data => setLessons(Array.isArray(data) ? data : []))
             .catch(err => console.error(err));
     };
 
@@ -24,62 +47,80 @@ const AdminPanel = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setMessage('');
-        setError('');
+        setCardStatus(null);
 
         if (!selectedLesson) {
-            setError('Оберіть урок');
+            setCardStatus({ type: 'error', text: 'Оберіть урок' });
+            return;
+        }
+
+        const link = videoLink.trim();
+        if (isYouTubeUrl(link) && !getYouTubeId(link)) {
+            setCardStatus({ type: 'error', text: 'Не вдалося розпізнати посилання YouTube. Скопіюйте посилання на конкретне відео.' });
             return;
         }
 
         try {
-            const res = await fetch(`${API_URL}/lessons/${selectedLesson}/objects`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wordName, videoLink, pictLink }),
-            });
-            const data = await res.json();
+            const { res, data } = await adminPost(`${API_URL}/lessons/${selectedLesson}/objects`, { wordName, videoLink: link, pictLink });
             if (res.ok) {
-                setMessage('Картку успішно додано!');
+                setCardStatus({ type: 'success', text: 'Картку успішно додано!' });
                 setWordName('');
                 setVideoLink('');
                 setPictLink('');
             } else {
-                setError(data.error || 'Помилка при додаванні');
+                setCardStatus({ type: 'error', text: data.error || 'Помилка при додаванні' });
             }
         } catch (err) {
+            if (err.message === 'unauthorized') return;
             console.error(err);
-            setError('Помилка сервера');
+            setCardStatus({ type: 'error', text: 'Помилка сервера' });
         }
     };
 
     const handleCreateLesson = async (e) => {
         e.preventDefault();
-        setMessage('');
-        setError('');
+        setLessonStatus(null);
 
         if (!newLessonName.trim()) {
-            setError('Введіть назву уроку');
+            setLessonStatus({ type: 'error', text: 'Введіть назву уроку' });
             return;
         }
 
         try {
-            const res = await fetch(`${API_URL}/lessons`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newLessonName }),
-            });
-            const data = await res.json();
+            const { res, data } = await adminPost(`${API_URL}/lessons`, { name: newLessonName.trim() });
             if (res.ok) {
-                setMessage('Урок успішно створено!');
+                setLessonStatus({ type: 'success', text: 'Урок успішно створено!' });
                 setNewLessonName('');
                 fetchLessons(); // Reload lessons list
+                onLessonsChanged();
             } else {
-                setError(data.error || 'Помилка при створенні уроку');
+                setLessonStatus({ type: 'error', text: data.error || 'Помилка при створенні уроку' });
             }
         } catch (err) {
+            if (err.message === 'unauthorized') return;
             console.error(err);
-            setError('Помилка сервера');
+            setLessonStatus({ type: 'error', text: 'Помилка сервера' });
+        }
+    };
+
+    const handleResetDb = async () => {
+        if (!window.confirm('Видалити ВСІ уроки та картки і відновити початкові дані? Цю дію не можна скасувати.')) return;
+        setResetStatus(null);
+
+        try {
+            const { res, data } = await adminPost(`${API_URL}/reset-db`, {});
+            if (res.ok) {
+                setResetStatus({ type: 'success', text: data.message || 'Базу даних скинуто' });
+                setSelectedLesson('');
+                fetchLessons();
+                onLessonsChanged();
+            } else {
+                setResetStatus({ type: 'error', text: data.error || 'Помилка при скиданні бази' });
+            }
+        } catch (err) {
+            if (err.message === 'unauthorized') return;
+            console.error(err);
+            setResetStatus({ type: 'error', text: 'Помилка сервера' });
         }
     };
 
@@ -89,8 +130,7 @@ const AdminPanel = () => {
             <div className="bg-white p-8 rounded-lg shadow-md border border-gray-100">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800">Створити новий урок</h2>
 
-                {message && <div className="bg-green-100 text-green-700 p-3 rounded mb-4">{message}</div>}
-                {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+                <Status status={lessonStatus} />
 
                 <form onSubmit={handleCreateLesson}>
                     <div className="mb-4">
@@ -117,8 +157,7 @@ const AdminPanel = () => {
             <div className="bg-white p-8 rounded-lg shadow-md border border-gray-100">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800">Додати картку до уроку</h2>
 
-                {message && <div className="bg-green-100 text-green-700 p-3 rounded mb-4">{message}</div>}
-                {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+                <Status status={cardStatus} />
 
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
@@ -153,7 +192,7 @@ const AdminPanel = () => {
                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                             value={videoLink}
                             onChange={(e) => setVideoLink(e.target.value)}
-                            placeholder="https://..."
+                            placeholder="https://youtu.be/..."
                         />
                     </div>
 
@@ -175,6 +214,22 @@ const AdminPanel = () => {
                         Додати картку
                     </button>
                 </form>
+            </div>
+
+            {/* Reset DB Section */}
+            <div className="bg-white p-8 rounded-lg shadow-md border border-red-200">
+                <h2 className="text-2xl font-bold mb-2 text-gray-800">Скинути базу даних</h2>
+                <p className="text-sm text-gray-500 mb-6">Видаляє всі уроки й картки та відновлює дактильну абетку і адміна.</p>
+
+                <Status status={resetStatus} />
+
+                <button
+                    type="button"
+                    onClick={handleResetDb}
+                    className="w-full bg-red-600 text-white font-bold py-2 px-4 rounded hover:bg-red-700 transition duration-200"
+                >
+                    Скинути базу
+                </button>
             </div>
         </div>
     );
