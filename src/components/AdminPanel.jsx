@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import API_URL from '../config';
-import { getYouTubeId, isYouTubeUrl } from '../utils/youtube';
-
-const Status = ({ status }) => {
-    if (!status) return null;
-    const style = status.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-    return <div className={`${style} p-3 rounded mb-4`}>{status.text}</div>;
-};
+import { getVideoLinkError } from '../utils/youtube';
+import Status from './Status';
+import LessonEditor from './LessonEditor';
 
 const AdminPanel = ({ token, onUnauthorized, onLessonsChanged }) => {
     const [lessons, setLessons] = useState([]);
@@ -17,13 +13,15 @@ const AdminPanel = ({ token, onUnauthorized, onLessonsChanged }) => {
     const [newLessonName, setNewLessonName] = useState('');
     const [lessonStatus, setLessonStatus] = useState(null);
     const [cardStatus, setCardStatus] = useState(null);
+    // Bumped after a card is added so the lesson editor reloads its words
+    const [wordsVersion, setWordsVersion] = useState(0);
 
-    // POST with the admin token; logs out if the token is missing or expired
-    const adminPost = async (url, body) => {
+    // Request with the admin token; logs out if the token is missing or expired
+    const adminRequest = async (method, url, body) => {
         const res = await fetch(url, {
-            method: 'POST',
+            method,
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify(body),
+            body: body ? JSON.stringify(body) : undefined,
         });
         if (res.status === 401) {
             onUnauthorized();
@@ -44,6 +42,12 @@ const AdminPanel = ({ token, onUnauthorized, onLessonsChanged }) => {
         fetchLessons();
     }, []);
 
+    // Called by the lesson editor after any change: refresh lists here, in the header and in the study view
+    const handleDataChanged = () => {
+        fetchLessons();
+        onLessonsChanged();
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setCardStatus(null);
@@ -54,18 +58,21 @@ const AdminPanel = ({ token, onUnauthorized, onLessonsChanged }) => {
         }
 
         const link = videoLink.trim();
-        if (isYouTubeUrl(link) && !getYouTubeId(link)) {
-            setCardStatus({ type: 'error', text: 'Не вдалося розпізнати посилання YouTube. Скопіюйте посилання на конкретне відео.' });
+        const linkError = getVideoLinkError(link);
+        if (linkError) {
+            setCardStatus({ type: 'error', text: linkError });
             return;
         }
 
         try {
-            const { res, data } = await adminPost(`${API_URL}/lessons/${selectedLesson}/objects`, { wordName, videoLink: link, pictLink });
+            const { res, data } = await adminRequest('POST', `${API_URL}/lessons/${selectedLesson}/objects`, { wordName, videoLink: link, pictLink });
             if (res.ok) {
                 setCardStatus({ type: 'success', text: 'Картку успішно додано!' });
                 setWordName('');
                 setVideoLink('');
                 setPictLink('');
+                setWordsVersion(v => v + 1);
+                onLessonsChanged();
             } else {
                 setCardStatus({ type: 'error', text: data.error || 'Помилка при додаванні' });
             }
@@ -86,12 +93,11 @@ const AdminPanel = ({ token, onUnauthorized, onLessonsChanged }) => {
         }
 
         try {
-            const { res, data } = await adminPost(`${API_URL}/lessons`, { name: newLessonName.trim() });
+            const { res, data } = await adminRequest('POST', `${API_URL}/lessons`, { name: newLessonName.trim() });
             if (res.ok) {
                 setLessonStatus({ type: 'success', text: 'Урок успішно створено!' });
                 setNewLessonName('');
-                fetchLessons(); // Reload lessons list
-                onLessonsChanged();
+                handleDataChanged();
             } else {
                 setLessonStatus({ type: 'error', text: data.error || 'Помилка при створенні уроку' });
             }
@@ -193,6 +199,13 @@ const AdminPanel = ({ token, onUnauthorized, onLessonsChanged }) => {
                     </button>
                 </form>
             </div>
+
+            <LessonEditor
+                lessons={lessons}
+                adminRequest={adminRequest}
+                onDataChanged={handleDataChanged}
+                version={wordsVersion}
+            />
         </div>
     );
 };

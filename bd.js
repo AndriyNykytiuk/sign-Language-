@@ -71,6 +71,29 @@ async function addLessonObject(lessonId, wordName, videoLink, pictLink) {
   return res.rows[0].id;
 }
 
+// Update/delete functions return false when the row doesn't exist
+async function updateLesson(id, name) {
+  const res = await query(`UPDATE lessons SET name = $1 WHERE id = $2`, [name, id]);
+  return res.rowCount > 0;
+}
+
+async function deleteLesson(id) {
+  // lesson_objects are removed by ON DELETE CASCADE
+  const res = await query(`DELETE FROM lessons WHERE id = $1`, [id]);
+  return res.rowCount > 0;
+}
+
+async function updateLessonObject(id, wordName, videoLink, pictLink) {
+  const sql = `UPDATE lesson_objects SET wordName = $1, videoLink = $2, pictLink = $3 WHERE id = $4`;
+  const res = await query(sql, [wordName, videoLink, pictLink, id]);
+  return res.rowCount > 0;
+}
+
+async function deleteLessonObject(id) {
+  const res = await query(`DELETE FROM lesson_objects WHERE id = $1`, [id]);
+  return res.rowCount > 0;
+}
+
 async function getAllLessonsWithObjects() {
   const sql = `
     SELECT l.id as "lessonId", l.name, o.id as "objectId", o.wordName as "wordName", o.videoLink as "videoLink", o.pictLink as "pictLink"
@@ -162,6 +185,10 @@ module.exports = {
   close,
   addLesson,
   addLessonObject,
+  updateLesson,
+  deleteLesson,
+  updateLessonObject,
+  deleteLessonObject,
   getAllLessonsWithObjects,
   getAllLessonsOnly,
   getObjectsByLessonId,

@@ -43,3 +43,11 @@ export const getYouTubeEmbedUrl = (id) => {
   })
   return `https://www.youtube-nocookie.com/embed/${id}?${params}`
 }
+
+// Error text for an invalid video link, or null when the link is acceptable
+export const getVideoLinkError = (link) => {
+  if (isYouTubeUrl(link) && !getYouTubeId(link)) {
+    return 'Не вдалося розпізнати посилання YouTube. Скопіюйте посилання на конкретне відео.'
+  }
+  return null
+}

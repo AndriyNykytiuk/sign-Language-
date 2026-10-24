@@ -31,6 +31,33 @@ async function addLessonObject(lessonId, wordName, videoLink, pictLink) {
     return id;
 }
 
+async function updateLesson(id, name) {
+    const lesson = lessons.find(l => l.id === parseInt(id));
+    if (!lesson) return false;
+    lesson.name = name;
+    return true;
+}
+
+async function deleteLesson(id) {
+    const before = lessons.length;
+    lessons = lessons.filter(l => l.id !== parseInt(id));
+    lessonObjects = lessonObjects.filter(obj => obj.lesson_id !== parseInt(id));
+    return lessons.length < before;
+}
+
+async function updateLessonObject(id, wordName, videoLink, pictLink) {
+    const obj = lessonObjects.find(o => o.objectId === parseInt(id));
+    if (!obj) return false;
+    Object.assign(obj, { wordName, videoLink, pictLink });
+    return true;
+}
+
+async function deleteLessonObject(id) {
+    const before = lessonObjects.length;
+    lessonObjects = lessonObjects.filter(o => o.objectId !== parseInt(id));
+    return lessonObjects.length < before;
+}
+
 async function getAllLessonsWithObjects() {
     const result = [];
     lessons.forEach(lesson => {
@@ -99,6 +126,10 @@ module.exports = {
     close,
     addLesson,
     addLessonObject,
+    updateLesson,
+    deleteLesson,
+    updateLessonObject,
+    deleteLessonObject,
     getAllLessonsWithObjects,
     getAllLessonsOnly,
     getObjectsByLessonId,

@@ -52,7 +52,7 @@ function App() {
     setStep(prev => prev + 1);
   };
 
-  // Fetch objects when a lesson is selected
+  // Fetch objects when a lesson is selected (and again after admin edits)
   useEffect(() => {
     if (!selectedLessonId) return;
 
@@ -65,7 +65,7 @@ function App() {
       .then(startDeck)
       .catch(err => console.error('Failed to fetch lesson objects:', err))
       .finally(() => setLoading(false));
-  }, [selectedLessonId]);
+  }, [selectedLessonId, lessonsVersion]);
 
   const handleSearchResults = useCallback((results) => {
     if (results) {

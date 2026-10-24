@@ -64,6 +64,57 @@ app.post('/lessons/:id/objects', requireAdmin, async (req, res) => {
   }
 });
 
+// перейменувати урок
+app.put('/lessons/:id', requireAdmin, async (req, res) => {
+  try {
+    const name = (req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Назва уроку обов’язкова' });
+    if (!(await db.updateLesson(req.params.id, name))) return res.status(404).json({ error: 'Урок не знайдено' });
+    res.json({ message: 'Урок оновлено', lesson: { id: Number(req.params.id), name } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// видалити урок разом з усіма словами
+app.delete('/lessons/:id', requireAdmin, async (req, res) => {
+  try {
+    if (!(await db.deleteLesson(req.params.id))) return res.status(404).json({ error: 'Урок не знайдено' });
+    res.json({ message: 'Урок видалено' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// змінити слово (назву, відео, картинку)
+app.put('/objects/:id', requireAdmin, async (req, res) => {
+  try {
+    const wordName = (req.body.wordName || '').trim();
+    const { videoLink = null, pictLink = null } = req.body;
+    if (!wordName) return res.status(400).json({ error: 'wordName обов’язковий' });
+    if (!(await db.updateLessonObject(req.params.id, wordName, videoLink, pictLink))) {
+      return res.status(404).json({ error: 'Слово не знайдено' });
+    }
+    res.json({ message: 'Слово оновлено', object: { objectId: Number(req.params.id), wordName, videoLink, pictLink } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// видалити слово
+app.delete('/objects/:id', requireAdmin, async (req, res) => {
+  try {
+    if (!(await db.deleteLessonObject(req.params.id))) return res.status(404).json({ error: 'Слово не знайдено' });
+    res.json({ message: 'Слово видалено' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // отримати всі уроки (тільки id і name для дроп-ліста)
 app.get('/lessons-list', async (req, res) => {
   try {
